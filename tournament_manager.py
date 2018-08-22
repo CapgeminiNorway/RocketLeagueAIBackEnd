@@ -3,16 +3,26 @@ import os.path
 import configparser
 import random
 
-from rlbot import runner as framework_runner
+from rlbot.setup_manager import SetupManager
 
 class TournamentManager:
     def __init__(self):
         self.available_bots_path = "C:\gitrepos\Tournament_bots"
         self.rlbot_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) + '/rlbot.cfg')
 
-    def get_bots(self, num_participants):
+    def start_match(self):
+        print("starting")
+        manager = SetupManager()
+        manager.startup()
+        manager.load_config()
+        manager.launch_bot_processes()
+        manager.run()  # Runs forever until interrupted
+        manager.shut_down()
+
+    def set_config(self, num_participants):
         match_participants = self.read_botlist(num_participants)
-        self.update_config(match_participants)
+        match_length = self.update_config(match_participants)
+        return match_length, match_participants
 
     def read_botlist(self, num_participants):
         # TODO: Select match participants based on predetermined schedule
@@ -29,6 +39,7 @@ class TournamentManager:
         print("Getting num_participants:", config["Match Configuration"]["num_participants"])
         config["Match Configuration"]["num_participants"] = str(len(match_participants))
         print("Getting num_participants:", config["Match Configuration"]["num_participants"])
+        match_length = config["Mutator Configuration"]["match length"]
 
         for i, bot in enumerate(match_participants):
             print("Participant" + str(i) + ":", config["Participant Configuration"]["participant_config_" + str(i)])
@@ -39,6 +50,8 @@ class TournamentManager:
 
         with open(self.rlbot_cfg_path, 'w') as configfile:
             config.write(configfile)
+
+        return match_length
 
     def add_score_to_database(self):
         return ""
