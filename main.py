@@ -10,10 +10,61 @@ from tournament_manager import TournamentManager
 
 game_finished = False
 score = 0
+rocket_league_exe_path = 'C:/Program Files (x86)/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe'
+
 
 # Print on process termination
 def on_terminate(proc):
     print("process {} terminated with exit code {}".format(proc, proc.returncode))
+
+
+def print_process_start_returncode(process_result):
+    if process_result.returncode == 0:
+        print("Match started successfully in new process")
+    else:
+        print("Match was not started and new process returned exit code:", process_result.returncode)
+
+
+def kill_processes_by_name(process_name):
+    pid_self = os.getpid()
+    procs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if process_name in p.info['name']]
+    print("Current pid:", pid_self)
+    print("Found these Python processes:")
+    print(procs)
+
+    self_process = [proc for proc in procs if proc['pid'] == pid_self]  # Should only return one element
+    print("Removing main process from process list:", self_process)
+    # either:
+    for proc in self_process:
+        procs.remove(proc)
+    # We need the actual process elements in the end and not just a dictionary of pid + names
+    procs = [psutil.Process(proc["pid"]) for proc in procs]
+
+    timeout = 3
+    for process in procs:
+        pid = process.pid
+        if pid != pid_self:
+            print("Terminating process:", pid)
+            # python_process = psutil.Process(pid)
+            process.terminate()
+    time.sleep(0.5)
+    gone, alive = psutil.wait_procs(procs, timeout=timeout, callback=on_terminate)
+    if alive:
+        # send SIGKILL
+        for p in alive:
+            print("process {} survived SIGTERM; trying SIGKILL" % p)
+            p.kill()
+        time.sleep(0.5)
+        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+        if alive:
+            # give up
+            for p in alive:
+                print("process {} survived SIGKILL; giving up" % p)
+
+def sleep_with_print(seconds):
+    for second in range(seconds):
+        time.sleep(1)
+        print("Process has slept for", second+1, "seconds of total", seconds, "seconds")
 
 if __name__ == '__main__':
     print("starting")
@@ -28,57 +79,31 @@ if __name__ == '__main__':
         #tournament.update_config(match_participants)
         print("Config updated")
 
+        rlprocs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if process_name in p.info['name']]
+        if not rlprocs:
+            rocket_league_process_result = subprocess.run(rocket_league_exe_path, shell=False)
+            print_process_start_returncode(rocket_league_process_result)
+        else:
+            print("---Rocket League already running---")
 
-        print("Creating new process")
+        sleep_with_print(10)
+
+        print("Creating match new process")
         match_process = subprocess.run('start python rlbot_match.py', shell=True)
+        print_process_start_returncode(match_process)
         #match_process = subprocess.Popen(['cmd', 'python', 'rlbot_match.py'], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True).pid
         #match_process = subprocess.call('start python rlbot_match.py', shell=True)
         #match_process = Process(target=tournament.start_match(), args={})
-        if match_process.returncode == 0:
-            print("Match started successfully in new process")
-        else:
-            print("Match was not started and new process returned exit code:", match_process.returncode)
 
-       # print("Current running child processes:", procs)
-        #match_process.start()
-
-        #print("Match is running in process:", match_process)
-        sleep_time = (int(match_length.split()[0]) * 60) + 120
+        # Waiting for the preset match length + 3 minute grace time to allow for process startups and match replays etc.
+        sleep_time = (int(match_length.split()[0]) * 60) + 180
         print("Main process sleeping for", sleep_time, "seconds to allow game to finish")
-        time.sleep(sleep_time)  # Waiting for the preset match length + 2 minute grace time
+        sleep_with_print(sleep_time)
+        #time.sleep(60) # sleep_time)
 
-        pid_self = os.getpid()
-        procs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if 'python' in p.info['name']]
-        print("Current pid:", pid_self)
-        print("Found these Python processes:")
-        print(procs)
-
-        self_process = [proc for proc in procs if proc['pid'] == pid_self] # Should only return one element
-        print("Removing main process from process list:", self_process)
-        # either:
-        for proc in self_process:
-            procs.remove(proc)
-        # We need the actual process elements in the end and not just a dictionary of pid + names
-        procs = [psutil.Process(proc["pid"]) for proc in procs]
-
-        timeout = 3
-        for process in procs:
-            pid = process.pid
-            if pid != pid_self:
-                print("Terminating process:", pid)
-                #python_process = psutil.Process(pid)
-                process.terminate()
-        gone, alive = psutil.wait_procs(procs, timeout=timeout, callback=on_terminate)
-        if alive:
-            # send SIGKILL
-            for p in alive:
-                print("process {} survived SIGTERM; trying SIGKILL" % p)
-                p.kill()
-            gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
-            if alive:
-                # give up
-                for p in alive:
-                    print("process {} survived SIGKILL; giving up" % p)
+        # As cleanup we kill both the bots and game before restarting both before the next match
+        kill_processes_by_name("python")
+        kill_processes_by_name("RocketLeague")
 
         """
                 print("Match started")
