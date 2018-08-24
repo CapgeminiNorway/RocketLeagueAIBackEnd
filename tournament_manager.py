@@ -7,7 +7,7 @@ from rlbot.setup_manager import SetupManager
 
 class TournamentManager:
     def __init__(self):
-        self.available_bots_path = "C:\gitrepos\Tournament_bots"
+        self.available_bots_path = "C:/tournament_bots"
         self.rlbot_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) + '/rlbot.cfg')
 
     def start_match(self):

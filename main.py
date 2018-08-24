@@ -34,9 +34,12 @@ def kill_processes_by_name(process_name):
 
     self_process = [proc for proc in procs if proc['pid'] == pid_self]  # Should only return one element
     print("Removing main process from process list:", self_process)
-    # either:
+    
     for proc in self_process:
-        procs.remove(proc)
+        try:
+            procs.remove(proc)
+        except (PermissionError, AccessDenied):
+            print("Access denied on process", proc['pid'], "when trying to remove")
     # We need the actual process elements in the end and not just a dictionary of pid + names
     procs = [psutil.Process(proc["pid"]) for proc in procs]
 
@@ -46,20 +49,35 @@ def kill_processes_by_name(process_name):
         if pid != pid_self:
             print("Terminating process:", pid)
             # python_process = psutil.Process(pid)
-            process.terminate()
+            try:
+                process.terminate()
+            except (PermissionError, AccessDenied):
+                print("Permission error or access denied on process", proc['pid'], "when trying to terminate")
+    """
     time.sleep(0.5)
-    gone, alive = psutil.wait_procs(procs, timeout=timeout, callback=on_terminate)
-    if alive:
-        # send SIGKILL
-        for p in alive:
-            print("process {} survived SIGTERM; trying SIGKILL" % p)
-            p.kill()
-        time.sleep(0.5)
-        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+    try:
+        gone, alive = psutil.wait_procs(procs, timeout=timeout, callback=on_terminate)
         if alive:
-            # give up
+            # send SIGKILL
             for p in alive:
-                print("process {} survived SIGKILL; giving up" % p)
+                try:
+                    print("process {} survived SIGTERM; trying SIGKILL" % p)
+                    p.kill()
+                except (PermissionError, AccessDenied):
+                    print("Permission error or access denied on process", proc['pid'], "when trying to kill")
+            time.sleep(0.5)
+            try:
+                process.terminate()
+            except (PermissionError, AccessDenied):
+                print("Permission error or access denied on process", proc['pid'], "when trying to terminate")
+            gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+            if alive:
+                # give up
+                for p in alive:
+                    print("process {} survived SIGKILL; giving up" % p)
+    except (PermissionError, AccessDenied):
+        print("Permission error or access denied on process when checking if processes are removed")
+    """
 
 def sleep_with_print(seconds):
     for second in range(seconds):
@@ -69,8 +87,8 @@ def sleep_with_print(seconds):
 if __name__ == '__main__':
     print("starting")
     tournament = TournamentManager()
-    tournament.verify_dependencies()
-    print("dependencies verified")
+    #tournament.verify_dependencies()
+    #print("dependencies verified")
 
     while True:
         print("Starting match")
@@ -79,17 +97,18 @@ if __name__ == '__main__':
         #tournament.update_config(match_participants)
         print("Config updated")
 
-        rlprocs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if process_name in p.info['name']]
+        rlprocs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if 'RocketLeague' in p.info['name']]
         if not rlprocs:
             rocket_league_process_result = subprocess.run(rocket_league_exe_path, shell=False)
             print_process_start_returncode(rocket_league_process_result)
         else:
             print("---Rocket League already running---")
 
-        sleep_with_print(10)
+        sleep_with_print(20)
 
         print("Creating match new process")
-        match_process = subprocess.run('start python rlbot_match.py', shell=True)
+        match_process = subprocess.run(['start', 'python', 'rlbot_match.py'], shell=True)
+        #match_process = subprocess.run(['runas', '/user:ps1icsovj\paperspace', 'start', 'python', 'rlbot_match.py'], shell=True)
         print_process_start_returncode(match_process)
         #match_process = subprocess.Popen(['cmd', 'python', 'rlbot_match.py'], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True).pid
         #match_process = subprocess.call('start python rlbot_match.py', shell=True)
@@ -104,6 +123,8 @@ if __name__ == '__main__':
         # As cleanup we kill both the bots and game before restarting both before the next match
         kill_processes_by_name("python")
         kill_processes_by_name("RocketLeague")
+        
+        sleep_with_print(30)
 
         """
                 print("Match started")
