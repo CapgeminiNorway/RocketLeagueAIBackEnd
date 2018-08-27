@@ -38,8 +38,9 @@ def kill_processes_by_name(process_name):
     for proc in self_process:
         try:
             procs.remove(proc)
-        except (PermissionError, AccessDenied):
+        except Exception as e:
             print("Access denied on process", proc['pid'], "when trying to remove")
+            print("Exception thrown:", str(e))
     # We need the actual process elements in the end and not just a dictionary of pid + names
     procs = [psutil.Process(proc["pid"]) for proc in procs]
 
@@ -51,8 +52,9 @@ def kill_processes_by_name(process_name):
             # python_process = psutil.Process(pid)
             try:
                 process.terminate()
-            except (PermissionError, AccessDenied):
+            except Exception as e:
                 print("Permission error or access denied on process", proc['pid'], "when trying to terminate")
+                print("Exception thrown:", str(e))
     """
     time.sleep(0.5)
     try:
@@ -80,8 +82,9 @@ def kill_processes_by_name(process_name):
     """
 
 def sleep_with_print(seconds):
-    for second in range(seconds):
-        time.sleep(1)
+    increment = 5
+    for second in range(0, seconds, increment):
+        time.sleep(increment)
         print("Process has slept for", second+1, "seconds of total", seconds, "seconds")
 
 if __name__ == '__main__':
@@ -101,10 +104,9 @@ if __name__ == '__main__':
         if not rlprocs:
             rocket_league_process_result = subprocess.run(rocket_league_exe_path, shell=False)
             print_process_start_returncode(rocket_league_process_result)
+            sleep_with_print(60)
         else:
             print("---Rocket League already running---")
-
-        sleep_with_print(20)
 
         print("Creating match new process")
         match_process = subprocess.run(['start', 'python', 'rlbot_match.py'], shell=True)
@@ -124,7 +126,7 @@ if __name__ == '__main__':
         kill_processes_by_name("python")
         kill_processes_by_name("RocketLeague")
         
-        sleep_with_print(30)
+        sleep_with_print(60)
 
         """
                 print("Match started")
