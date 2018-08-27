@@ -6,6 +6,7 @@ import psutil
 import subprocess
 import time
 import win32gui
+from pyautogui import press
 
 from rlbot.setup_manager import SetupManager
 
@@ -199,6 +200,7 @@ class TournamentManager:
             return
         try:
             win32gui.BringWindowToTop(handle)
+            press('alt')
             win32gui.SetForegroundWindow(handle)
         except Exception as e:
             print("While trying to focus game window thre exception:", str(e))
