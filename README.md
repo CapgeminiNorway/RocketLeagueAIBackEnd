@@ -7,7 +7,7 @@ If you want to clone this reposityr remember to run the following two commands f
 - `git submodule init`
 - `git submodule update`
 - `pip install azure azure-storage`
-- lag til rocketleague.cfg prod key til storage Azure.account_key
+- add rocketleague.cfg prod key for storage Azure.account_key
 -  
 
 Alternatively, use this command to clone this repository:
