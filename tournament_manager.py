@@ -195,5 +195,10 @@ class TournamentManager:
 
     def set_game_window_in_focus(self):
         handle = win32gui.FindWindow(None, "Rocket League (32-bit, DX9, Cooked)")
-        win32gui.BringWindowToTop(handle)
-        win32gui.SetForegroundWindow(handle)
+        if handle is None:
+            return
+        try:
+            win32gui.BringWindowToTop(handle)
+            win32gui.SetForegroundWindow(handle)
+        except Exception as e:
+            print("While trying to focus game window thre exception:", str(e))
