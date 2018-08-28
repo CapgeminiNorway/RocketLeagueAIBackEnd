@@ -2,6 +2,7 @@ import sys, uuid, os
 import os.path
 import ntpath
 import zipfile
+import shutil
 
 from azure.storage.blob import BlockBlobService, PublicAccess
 
@@ -39,25 +40,46 @@ class SubmissionManager:
         print("upload "+temp_full_path_filename)
         self.block_blob_service.create_blob_from_path(self.upload_container, ntpath.basename(temp_full_path_filename),
                                                       temp_full_path_filename)
-        os.remove(temp_full_path_filename)
+        # os.remove(temp_full_path_filename)
 
-    def downlaod_submission(self, file_name):
-        print("download "+file_name)
-        download_file = self.config.bots_test_dir()+'/'+file_name
-        self.block_blob_service.get_blob_to_path(self.upload_container, file_name, download_file)
-
-    def move_sumbmission_to_processed(self, file_name):
+    def download_submission(self, file_name):
         blob_url = self.block_blob_service.make_blob_url(self.upload_container, file_name)
-        print("move submission to valid submissions "+blob_url)
+        print("download "+blob_url)
+        download_file = os.path.join(self.config.bots_test_dir(), file_name)
+        self.block_blob_service.get_blob_to_path(self.upload_container, file_name, download_file)
+        return download_file
+
+    def move_submission_to_processed(self, file_name):
+        blob_url = self.block_blob_service.make_blob_url(self.upload_container, file_name)
+        blob_processed_url = self.block_blob_service.make_blob_url(self.processed_submissions_container, file_name)
+        print("move submission {} to valid submissions {}".format(blob_url, blob_processed_url) )
         self.block_blob_service.copy_blob(self.processed_submissions_container, file_name, blob_url)
         self.block_blob_service.delete_blob(self.upload_container, file_name)
+        self.move_submission_dir(file_name)
 
-    def validate_submission(self, file_name):
-        full_path_to_file = os.path.join(self.config.bots_test_dir(), '/'+file_name)
+    def move_submission_dir(self, file_name):
+        bot_test_dir = self.get_test_bot_dir(file_name)
+        bot_tournament_dir = self.get_tournament_bot_dir(file_name)
+        if os.path.exists(bot_tournament_dir):
+            print("delete existing dir "+bot_tournament_dir)
+            shutil.rmtree(bot_tournament_dir)
+        result = shutil.move(bot_test_dir, self.config.bots_dir())
+        print(result)
+        print("moved bot dir from {} to {}".format(bot_test_dir, bot_tournament_dir))
+
+    def get_test_bot_dir(self, file_name):
+        return os.path.join(self.config.bots_test_dir(), os.path.splitext(file_name)[0])
+
+    def get_tournament_bot_dir(self, file_name):
+        return os.path.join(self.config.bots_dir(), os.path.splitext(file_name)[0])
+
+    def extract_submission(self, file_name):
+        full_path_to_file = os.path.join(self.config.bots_test_dir(), file_name)
+        extract_dir = self.get_test_bot_dir(file_name)
         zip_ref = zipfile.ZipFile(full_path_to_file, 'r')
-        zip_ref.extract(self.config.bots_test_dir()+'/'+os.path.basename(full_path_to_file))
+        zip_ref.extractall(path=extract_dir)
         zip_ref.close()
-        return True
+        return extract_dir
 
     def get_processed_submissions(self):
         return self.block_blob_service.list_blobs(self.processed_submissions_container)
@@ -73,26 +95,15 @@ def create_test_file( test_file_name ):
     return full_path_to_file
 
 
-def uploadBots(submission_manager: SubmissionManager):
+def upload_bots(submission_manager: SubmissionManager):
     # c:/bots/rashBot.zip
     submission_manager.upload_submission('c:/bots/rashBot.zip')
     # submissionManager.move_sumbmission_to_processed('rashBot.zip')
 
 
-# Main method.
+# Main method. upload test bot
 if __name__ == '__main__':
     submissionManager = SubmissionManager()
     # test_file = create_test_file('test.txt')
-    submissionManager.upload_submission(temp_full_path_filename='c:/bots/rashBot.zip')
+    submissionManager.upload_submission(temp_full_path_filename='c:/bots/rashBot2.zip')
 
-    print("new submissions")
-    for submission in submissionManager.get_uploaded_submissions():
-        print(submission.name)
-        submissionManager.downlaod_submission(submission.name)
-        if submissionManager.validate_submission(submission.name):
-            submissionManager.move_sumbmission_to_processed(submission.name)
-
-    print("processed submission")
-    for submission in submissionManager.get_processed_submissions():
-        print(submission.name)
-        #submissionManager.downlaod_submission(submission.name)
