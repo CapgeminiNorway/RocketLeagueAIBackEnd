@@ -21,10 +21,6 @@ class ValidationManager:
     def validate_required_files(self, full_path_to_bot):
         dir_content = os.listdir(full_path_to_bot)
         final_path_to_bot_dir = full_path_to_bot
-        print(len(dir_content))
-        print(os.path.isdir(dir_content[0]))
-        print(dir_content[0])
-        print(len(dir_content) == 1 and os.path.isdir(dir_content[0]))
         if len(dir_content) == 1 and os.path.isdir(dir_content[0]):
                 final_path_to_bot_dir = dir_content[0]
         print("validate bot config "+final_path_to_bot_dir)
