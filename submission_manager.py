@@ -9,8 +9,9 @@ from azure.storage.blob import BlockBlobService, PublicAccess
 from config import Config
 
 
-# first submission uploads to 'uploaded-submissions' container by frontend part. Backend service watches uploaded
-# container and validates. if it passes validation then submission file is moved to processed container and catalog in
+# first submission uploads to 'uploaded-submissions' container by frontend-backend part.
+# Backend service watches uploaded container and validates.
+# if it passes validation then submission file is moved to processed container and catalog in
 # bots folder is updated with latest bot
 
 class SubmissionManager:

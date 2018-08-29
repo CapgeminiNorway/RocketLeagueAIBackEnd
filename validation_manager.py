@@ -14,8 +14,8 @@ class ValidationManager:
     def validate(self, full_path_to_bot):
         print("validate "+full_path_to_bot)
         time.sleep(1)
-        print("validation done, bot is valid")
         is_valid = self.validate_required_files(full_path_to_bot) and self.validate_bot(full_path_to_bot)
+        print("validation done. Is bot valid? "+str(is_valid))
         return is_valid
 
     def validate_required_files(self, full_path_to_bot):

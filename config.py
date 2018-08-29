@@ -7,6 +7,10 @@ class Config:
         try:
             self.config = configparser.ConfigParser()
             self.config.read_file(open(os.path.join(os.path.dirname(os.path.abspath(__file__)) + "/rocketleague.cfg")))
+            home_dir = self.config["RocketLeague"]["home"]
+            if not os.path.exists(home_dir):
+                os.makedirs(home_dir)
+            print("RocketLeague home: "+os.path.abspath(home_dir))
         except FileNotFoundError as e:
             print(e)
             print("create file rocketleague.cfg, use rocketleague-template.cfg as example")
@@ -19,10 +23,10 @@ class Config:
         return self.config["Azure"]["account_key"]
 
     def bots_dir(self):
-        return "c:/bots"
+        return self.config["RocketLeague"]["home"]+"/bots"
 
     def bots_test_dir(self):
-        return "c:/bots_test"
+        return self.config["RocketLeague"]["home"]+"/bots_test"
 
 
 # Main method.
