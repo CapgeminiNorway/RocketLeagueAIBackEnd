@@ -36,12 +36,16 @@ class SubmissionManager:
     def get_uploaded_submissions(self):
         return self.block_blob_service.list_blobs(self.upload_container)
 
+    def remove_uploaded_submission(self, file_name):
+        self.block_blob_service.delete_blob(self.upload_container, file_name)
+
     # temp_full_path_filename will be deleted after uploading to blob container
-    def upload_submission(self, temp_full_path_filename):
+    def upload_submission(self, temp_full_path_filename, remove=False):
         print("upload "+temp_full_path_filename)
         self.block_blob_service.create_blob_from_path(self.upload_container, ntpath.basename(temp_full_path_filename),
                                                       temp_full_path_filename)
-        # os.remove(temp_full_path_filename)
+        if remove:
+            os.remove(temp_full_path_filename)
 
     def download_submission(self, file_name):
         blob_url = self.block_blob_service.make_blob_url(self.upload_container, file_name)
