@@ -5,7 +5,6 @@ import psutil
 from multiprocessing import Process
 import subprocess
 
-sys.path.insert(0, os.path.realpath(os.path.dirname(os.path.abspath(__file__)) + 'rlbot/src/main/python/'))
 from tournament_manager import TournamentManager
 
 game_finished = False

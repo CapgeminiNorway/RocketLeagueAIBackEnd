@@ -1,2 +1,6 @@
+rlbot
 azure
 azure-storage
+pywin32
+pyautogui
+numpy
