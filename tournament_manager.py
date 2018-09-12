@@ -13,7 +13,9 @@ from rlbot.setup_manager import SetupManager
 class TournamentManager:
     def __init__(self):
         self.available_bots_path = "C:/tournament_bots"
-        self.rocket_league_exe_path = 'C:/Program Files (x86)/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe'
+        # Default Rocket League exe path
+        # C:/Program Files (x86)/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe
+        self.rocket_league_exe_path = 'D:/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe'
         self.rlbot_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) + '/rlbot.cfg')
 
     def run_tournament(self):
@@ -24,14 +26,20 @@ class TournamentManager:
 
         rlprocs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if 'RocketLeague' in p.info['name']]
         if not rlprocs:
+            #rl_process = subprocess.Popen(self.rocket_league_exe_path)
+            #print("Rocket League running in process:", rl_process)
+            # When starting Rocket League process the actual process running RL is not returned
+            # We get returncode 53 when successfully starting the game
             rocket_league_process_result = subprocess.run(self.rocket_league_exe_path, shell=False)
             self.print_process_start_returncode(rocket_league_process_result)
-            self.sleep_with_print(60)
+            self.sleep_with_print(10)
         else:
             print("---Rocket League already running---")
 
         print("Creating match new process")
-        match_process = subprocess.run(['start', 'python', 'rlbot_match.py'], shell=True)
+        match_process = subprocess.Popen(r"python rlbot_match.py", creationflags=subprocess.CREATE_NEW_CONSOLE)
+        print("Match runnning in process:", match_process)
+        #match_process = subprocess.run(['start', 'python', 'rlbot_match.py'], shell=True)
         # match_process = subprocess.run(['runas', '/user:ps1icsovj\paperspace', 'start', 'python', 'rlbot_match.py'], shell=True)
         self.print_process_start_returncode(match_process)
         # match_process = subprocess.Popen(['cmd', 'python', 'rlbot_match.py'], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True).pid
@@ -42,16 +50,17 @@ class TournamentManager:
         self.set_game_window_in_focus()
 
         # Waiting for the preset match length + 3 minute grace time to allow for process startups and match replays etc.
-        sleep_time = (int(match_length.split()[0]) * 60) + 180
+        sleep_time = 30  # (int(match_length.split()[0]) * 60) + 180
         print("Main process sleeping for", sleep_time, "seconds to allow game to finish")
         self.sleep_with_print(sleep_time)
         # time.sleep(60) # sleep_time)
 
         # As cleanup we kill both the bots and game before restarting both before the next match
-        self.kill_processes_by_name("python")
+        subprocess.Popen("TASKKILL /F /PID {} /T".format(match_process.pid))
+        #self.kill_processes_by_name("python")
         self.kill_processes_by_name("RocketLeague")
 
-        self.sleep_with_print(60)
+        self.sleep_with_print(10)
 
         """
                 print("Match started")
@@ -127,7 +136,7 @@ class TournamentManager:
         print("process {} terminated with exit code {}".format(proc, proc.returncode))
 
     def print_process_start_returncode(self, process_result):
-        if process_result.returncode == 0:
+        if process_result.returncode == 0 or process_result.returncode == 53:
             print("Match started successfully in new process")
         else:
             print("Match was not started and new process returned exit code:", process_result.returncode)
@@ -136,7 +145,7 @@ class TournamentManager:
         pid_self = os.getpid()
         procs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if process_name in p.info['name']]
         print("Current pid:", pid_self)
-        print("Found these Python processes:")
+        print("Found these", process_name, "processes:")
         print(procs)
 
         self_process = [proc for proc in procs if proc['pid'] == pid_self]  # Should only return one element
