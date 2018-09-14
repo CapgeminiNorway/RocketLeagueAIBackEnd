@@ -7,6 +7,7 @@ import subprocess
 import time
 import win32gui
 from pyautogui import press
+import winreg # Renamed from _winreg in Pyhon 3
 
 from rlbot.setup_manager import SetupManager
 
@@ -15,8 +16,11 @@ class TournamentManager:
         self.available_bots_path = "C:/tournament_bots"
         # Default Rocket League exe path
         # C:/Program Files (x86)/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe
-        self.rocket_league_exe_path = 'D:/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe'
+        self.rocket_league_exe_path = 'C:/Program Files (x86)/Steam/steamapps/common/rocketleague/Binaries/Win32/RocketLeague.exe'
         self.rlbot_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) + '/rlbot.cfg')
+
+        # Set critical application crashes to not create popup for user
+        self.set_run_key("Windows Error Reporting", "1")
 
     def run_tournament(self):
         match_length, match_participants = self.set_config(num_participants=2)
@@ -32,7 +36,8 @@ class TournamentManager:
             # We get returncode 53 when successfully starting the game
             rocket_league_process_result = subprocess.run(self.rocket_league_exe_path, shell=False)
             self.print_process_start_returncode(rocket_league_process_result)
-            self.sleep_with_print(10)
+            if self.sleep_with_print(60) == "crashed":
+                return
         else:
             print("---Rocket League already running---")
 
@@ -50,7 +55,7 @@ class TournamentManager:
         self.set_game_window_in_focus()
 
         # Waiting for the preset match length + 3 minute grace time to allow for process startups and match replays etc.
-        sleep_time = 30  # (int(match_length.split()[0]) * 60) + 180
+        sleep_time = (int(match_length.split()[0]) * 60) + 180
         print("Main process sleeping for", sleep_time, "seconds to allow game to finish")
         self.sleep_with_print(sleep_time)
         # time.sleep(60) # sleep_time)
@@ -59,8 +64,9 @@ class TournamentManager:
         subprocess.Popen("TASKKILL /F /PID {} /T".format(match_process.pid))
         #self.kill_processes_by_name("python")
         self.kill_processes_by_name("RocketLeague")
+        self.kill_processes_by_name("RLBot_Injector.exe")
 
-        self.sleep_with_print(10)
+        self.sleep_with_print(15)
 
         """
                 print("Match started")
@@ -141,6 +147,16 @@ class TournamentManager:
         else:
             print("Match was not started and new process returned exit code:", process_result.returncode)
 
+    def check_process_is_running(self, process_name):
+        pid_self = os.getpid()
+        procs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if process_name in p.info['name']]
+        if procs:
+            print("Found at least one", process_name, "process still running")
+            return True
+        else:
+            print(process_name, "is not running")
+            return False
+
     def kill_processes_by_name(self, process_name):
         pid_self = os.getpid()
         procs = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if process_name in p.info['name']]
@@ -202,6 +218,10 @@ class TournamentManager:
         for second in range(0, seconds, increment):
             time.sleep(increment)
             print("Process has slept for", second, "seconds of total", seconds, "seconds")
+            if self.check_process_is_running("RocketLeague") == 0:
+                print("Rocket League has crashed. Stopping current run and starting over")
+                return "crashed"
+        return "running"
 
     def set_game_window_in_focus(self):
         handle = win32gui.FindWindow(None, "Rocket League (32-bit, DX9, Cooked)")
@@ -213,3 +233,27 @@ class TournamentManager:
             win32gui.SetForegroundWindow(handle)
         except Exception as e:
             print("While trying to focus game window thre exception:", str(e))
+
+    def set_run_key(self, key, value):
+        """
+        Set/Remove Run Key in windows registry.
+
+        :param key: Run Key Name
+        :param value: Program to Run
+        :return: None
+        """
+        # This is for the system run variable
+        reg_key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows",
+            0, winreg.KEY_SET_VALUE) #r'Software\Microsoft\Windows\CurrentVersion\Run',
+
+        with reg_key:
+            if value is None:
+                winreg.DeleteValue(reg_key, key)
+            else:
+                if '%' in value:
+                    var_type = winreg.REG_EXPAND_SZ
+                else:
+                    var_type = winreg.REG_SZ
+                winreg.SetValueEx(reg_key, key, 0, var_type, value)
